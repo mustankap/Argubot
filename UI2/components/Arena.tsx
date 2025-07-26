@@ -4,7 +4,7 @@ import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { ArrowLeft, Clock, Send, Trophy, ExternalLink } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 import { Judge } from "./Judge";
 
 interface ArenaProps {

@@ -2,7 +2,7 @@ import React, { useState } from "react";
 import { RoomCard } from "./components/RoomCard";
 import { Arena } from "./components/Arena";
 import { Swords, Target, Scale, Vote, Heart, Globe, Cpu, Plus } from "lucide-react";
-import { motion } from "motion/react";
+import { motion } from "framer-motion";
 
 const rooms = [
   { name: "Law", icon: Scale },
