@@ -1,121 +1,163 @@
 import React, { useState } from "react";
-import { RoomCard } from "./components/RoomCard";
 import { Arena } from "./components/Arena";
-import { Swords, Target, Scale, Vote, Heart, Globe, Cpu, Plus } from "lucide-react";
-import { motion } from "motion/react";
-
-const rooms = [
-  { name: "Law", icon: Scale },
-  { name: "Politics", icon: Vote },
-  { name: "Ethics", icon: Heart },
-  { name: "Cultural", icon: Globe },
-  { name: "Technology", icon: Cpu },
-  { name: "Define Your Own", icon: Plus },
-];
+import { Swords, Target, Send, Zap, MessageCircle } from "lucide-react";
+import { motion } from "framer-motion";
+import { Button } from "./components/ui/button";
+import { Card } from "./components/ui/card";
 
 export default function App() {
-  const [currentView, setCurrentView] = useState<'rooms' | 'arena'>('rooms');
-  const [selectedRoom, setSelectedRoom] = useState<string>('');
+  const [currentView, setCurrentView] = useState<'start' | 'arena'>('start');
+  const [userArgument, setUserArgument] = useState<string>('');
 
   // Set dark mode
   React.useEffect(() => {
     document.documentElement.classList.add("dark");
   }, []);
 
-  const handleRoomSelect = (roomName: string, customTopic?: string) => {
-    const finalRoomName = customTopic || roomName;
-    console.log(`Selected room: ${finalRoomName}`);
-    setSelectedRoom(finalRoomName);
-    setCurrentView('arena');
+  const handleStartArgument = () => {
+    if (userArgument.trim()) {
+      setCurrentView('arena');
+    }
   };
 
-  const handleBackToRooms = () => {
-    setCurrentView('rooms');
-    setSelectedRoom('');
+  const handleBackToStart = () => {
+    setCurrentView('start');
+    setUserArgument('');
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      handleStartArgument();
+    }
   };
 
   if (currentView === 'arena') {
     return (
       <Arena 
-        roomName={selectedRoom} 
-        onBack={handleBackToRooms}
+        roomName="General"
+        onBack={handleBackToStart}
+        initialUserMessage={userArgument}
       />
     );
   }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
-      <div className="container mx-auto px-4 py-12">
+    <div className="min-h-screen bg-black text-white" style={{ backgroundColor: '#000000', color: '#ffffff' }}>
+      <div className="container mx-auto px-4 py-8 md:py-16">
         {/* Header Section */}
         <motion.div 
-          className="text-center mb-16"
+          className="text-center mb-12"
           initial={{ opacity: 0, y: -20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.8 }}
         >
           <motion.div 
-            className="flex items-center justify-center mb-6"
+            className="flex items-center justify-center mb-8"
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Swords className="w-8 h-8 text-yellow-muted mr-3" />
-            <h1 className="text-4xl md:text-5xl text-foreground">
-              Arguebot Arena
-            </h1>
-            <Target className="w-8 h-8 text-yellow-muted ml-3" />
+            <Swords className="w-10 h-10 text-yellow mr-4 drop-shadow-lg" style={{ color: '#ffcd1a' }} />
+            <div className="text-center">
+              <h1 className="text-5xl md:text-6xl font-bold text-yellow drop-shadow-lg tracking-wider" style={{ color: '#ffcd1a' }}>
+                S.A.S.S.Y
+              </h1>
+              <p className="text-lg md:text-xl text-yellow-muted mt-2 font-medium tracking-wide" style={{ color: '#fbbf24' }}>
+                Smart AI System with Sassy Yields
+              </p>
+            </div>
+            <Target className="w-10 h-10 text-yellow ml-4 drop-shadow-lg" style={{ color: '#ffcd1a' }} />
           </motion.div>
 
           <motion.div 
-            className="space-y-4 max-w-2xl mx-auto"
+            className="space-y-6 max-w-3xl mx-auto"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.4 }}
           >
-            <p className="text-xl text-muted-foreground">
-              Try your luck against the <span className="text-yellow">arguer</span>
+            <h2 className="text-2xl md:text-3xl text-foreground font-semibold">
+              Ready to argue with the undefeated champion? 
+            </h2>
+            <p className="text-lg text-muted-foreground">
+              Bring your <span className="text-yellow font-semibold">strongest opinion</span> and let's see if you can out-argue an AI that's never lost a debate
             </p>
-            <p className="text-lg text-muted-foreground/80">
-              they haven't lost an argument since… ever
-            </p>
+            <div className="flex items-center justify-center gap-6 text-sm text-muted-foreground">
+              <div className="flex items-center gap-2">
+                <Zap className="w-4 h-4 text-yellow drop-shadow-sm" />
+                <span>5-minute rounds</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <Target className="w-4 h-4 text-yellow drop-shadow-sm" />
+                <span>Judge picks winner (+1 point)</span>
+              </div>
+              <div className="flex items-center gap-2">
+                <MessageCircle className="w-4 h-4 text-yellow drop-shadow-sm" />
+                <span>Personality report at end</span>
+              </div>
+            </div>
           </motion.div>
         </motion.div>
 
-        {/* Room Selection Section */}
+        {/* Argument Input Section */}
         <motion.div 
-          className="max-w-4xl mx-auto"
-          initial={{ opacity: 0 }}
-          animate={{ opacity: 1 }}
+          className="max-w-2xl mx-auto"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.6 }}
         >
-          <h2 className="text-2xl text-center mb-8 text-foreground">
-            Select a room below to enter the <span className="text-yellow">arena</span> (no helmets
-            provided).
-          </h2>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-            {rooms.map((room, index) => (
-              <RoomCard
-                key={index}
-                title={room.name}
-                icon={room.icon}
-                index={index}
-                onClick={(customTopic) => handleRoomSelect(room.name, customTopic)}
-              />
-            ))}
-          </div>
+          <Card className="p-8 border-2 border-yellow/30 bg-card/80 backdrop-blur-sm shadow-2xl shadow-yellow/10" style={{ backgroundColor: '#0a0a0a', borderColor: '#ffcd1a' }}>
+            <div className="space-y-6">
+              <div className="text-center">
+                <h3 className="text-xl font-semibold mb-2">What's your strongest take?</h3>
+                <p className="text-muted-foreground">
+                  Give me your strongest opinion about ANYTHING and I'll disagree with everything you say.
+                  Logic, wit, and creativity will win you points! 🔥
+                </p>
+              </div>
+              
+              <div className="space-y-4">
+                <textarea
+                  value={userArgument}
+                  onChange={(e) => setUserArgument(e.target.value)}
+                  onKeyDown={handleKeyPress}
+                  placeholder="Type your argument here... (e.g., 'Pineapple on pizza is actually amazing and anyone who disagrees has no taste')"
+                  className="w-full h-32 px-4 py-3 bg-input border border-border rounded-lg resize-none text-base focus:ring-2 focus:ring-yellow focus:border-yellow transition-all placeholder:text-muted-foreground/60 text-foreground"
+                  style={{ backgroundColor: '#1a1a1a', borderColor: '#262626', color: '#ffffff' }}
+                />
+                
+                <div className="flex items-center justify-between">
+                  <p className="text-xs text-muted-foreground">
+                    Ctrl/Cmd + Enter to start arguing
+                  </p>
+                  <div className="text-xs text-muted-foreground">
+                    {userArgument.length}/500
+                  </div>
+                </div>
+                
+                <Button 
+                  onClick={handleStartArgument}
+                  disabled={!userArgument.trim()}
+                  className="w-full bg-yellow hover:bg-yellow-muted text-black font-semibold py-3 text-base transition-all transform hover:scale-[1.02] disabled:transform-none disabled:opacity-50 shadow-lg shadow-yellow/20"
+                  style={{ backgroundColor: '#ffcd1a', color: '#000000' }}
+                  size="lg"
+                >
+                  <Send className="w-5 h-5 mr-2" />
+                  Start the Argument!
+                </Button>
+              </div>
+            </div>
+          </Card>
         </motion.div>
 
         {/* Footer */}
         <motion.div 
-          className="text-center mt-16"
+          className="text-center mt-12"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
-          transition={{ duration: 0.6, delay: 1.2 }}
+          transition={{ duration: 0.6, delay: 1.0 }}
         >
           <p className="text-sm text-muted-foreground/60">
-            Choose your battlefield and prepare for intellectual
-            combat
+            Warning: This AI is programmed to disagree with everything you say. Prepare for maximum sass! 😏
           </p>
         </motion.div>
       </div>
