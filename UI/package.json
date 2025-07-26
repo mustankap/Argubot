@@ -15,7 +15,11 @@
     "deploy": "npm run build && npm run deploy:netlify",
     "deploy:netlify": "npx netlify deploy --prod --dir=dist",
     "deploy:vercel": "npx vercel --prod",
-    "deploy:surge": "npx surge dist/ argubot-ui.surge.sh"
+    "deploy:surge": "npx surge dist/ argubot-ui.surge.sh",
+    "deploy:backend:railway": "railway deploy --detach",
+    "deploy:backend:render": "echo 'Push to GitHub and deploy via Render dashboard'",
+    "railway:login": "railway login",
+    "railway:init": "railway init"
   },
   "dependencies": {
     "@radix-ui/react-slot": "^1.1.2",

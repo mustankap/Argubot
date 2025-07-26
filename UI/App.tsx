@@ -60,7 +60,7 @@ export default function App() {
             <Swords className="w-10 h-10 text-yellow mr-4 drop-shadow-lg" style={{ color: '#ffcd1a' }} />
             <div className="text-center">
               <h1 className="text-5xl md:text-6xl font-bold text-yellow drop-shadow-lg tracking-wider" style={{ color: '#ffcd1a' }}>
-                S.A.S.S.Y
+                Sir Interruptsalot
               </h1>
               <p className="text-lg md:text-xl text-yellow-muted mt-2 font-medium tracking-wide" style={{ color: '#fbbf24' }}>
                 Smart AI System with Sassy Yields

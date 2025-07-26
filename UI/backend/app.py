@@ -7,19 +7,25 @@ from dotenv import load_dotenv
 import sys
 import asyncio
 
-# Add the SassyArguBot directory to the path so we can import the bot
+# Add the SassyArguBot directory to the path so we can import the bot (now Sir Interruptsalot)
 sys.path.append(os.path.join(os.path.dirname(__file__), "../../../SassyArguBot"))
 from argument_bot import SassyArgumentBot
 
 # Load environment variables
 load_dotenv()
 
-app = FastAPI(title="S.A.S.S.Y API", description="Smart AI System with Sassy Yields API")
+app = FastAPI(title="Sir Interruptsalot API", description="Smart AI System with Sassy Yields API")
 
 # Enable CORS for React frontend
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["http://localhost:5173", "http://localhost:5174", "http://localhost:3000"],
+    allow_origins=[
+        "http://localhost:5173", 
+        "http://localhost:5174", 
+        "http://localhost:3000",
+        "https://*.netlify.app",
+        "https://*.netlify.com"
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -52,7 +58,7 @@ class SessionResponse(BaseModel):
 
 @app.get("/")
 async def root():
-    return {"message": "S.A.S.S.Y API is running!"}
+    return {"message": "Sir Interruptsalot API is running!"}
 
 @app.post("/api/session/start", response_model=SessionResponse)
 async def start_session(request: StartSessionRequest):
@@ -75,7 +81,7 @@ async def start_session(request: StartSessionRequest):
         bots[session_id] = bot
         
         # Return just the bot response (frontend handles welcome message)
-        # bot_response already contains the sassy AI response
+        # bot_response already contains the interrupting AI response
 
         return SessionResponse(
             session_id=session_id,
@@ -201,7 +207,7 @@ def generate_status_update(user_points: int, bot_points: int, time_remaining: in
 ⏱️ **Time Remaining:** {minutes}:{seconds:02d}
 📊 **Current Scores:**
    • You: **{user_points}** points
-   • SassyBot: **{bot_points}** points
+   • Sir Interruptsalot: **{bot_points}** points
 
 🎯 **Status:** {status_text}
 

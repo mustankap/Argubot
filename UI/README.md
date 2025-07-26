@@ -1,4 +1,4 @@
-# 🔥 S.A.S.S.Y - Smart AI System with Sassy Yields
+# 🔥 Sir Interruptsalot - Smart AI System with Sassy Yields
 
 A beautiful React frontend integrated with a powerful FastAPI backend for real-time AI arguments with Claude!
 
@@ -177,12 +177,12 @@ Argubot/UI/
 
 ## 📄 License
 
-MIT License - feel free to use this for your own sassy AI projects!
+MIT License - feel free to use this for your own interrupting AI projects!
 
 ## 🎉 Credits
 
-Built with ❤️ for maximum sass and AI-powered arguments!
+Built with ❤️ for maximum interruptions and AI-powered arguments!
 
 ---
 
-**Ready to argue?** Start the app and let S.A.S.S.Y tear apart your opinions! 🔥
+**Ready to argue?** Start the app and let Sir Interruptsalot tear apart your opinions! 🔥

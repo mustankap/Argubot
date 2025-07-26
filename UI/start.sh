@@ -1,6 +1,6 @@
 #!/bin/bash
 
-echo "🔥 Starting S.A.S.S.Y Argument Bot 🔥"
+echo "🔥 Starting Sir Interruptsalot Argument Bot 🔥"
 echo "=================================="
 
 # Check if Python is installed

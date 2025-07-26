@@ -7,7 +7,7 @@ import { ArrowLeft, Clock, Send, Trophy, ExternalLink } from "lucide-react";
 import { motion } from "framer-motion";
 
 // API Configuration
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || "http://localhost:8000";
 
 interface ArenaProps {
   roomName: string;
@@ -88,7 +88,7 @@ export function Arena({ roomName, onBack, initialUserMessage }: ArenaProps) {
       setIsAiThinking(false);
       
       // Add welcome instructions first
-      const welcomeMessage = `🔥 **WELCOME TO S.A.S.S.Y!** 🔥
+      const welcomeMessage = `🔥 **WELCOME TO Sir Interruptsalot!** 🔥
 
 **Rules of Engagement:**
 • 🕐 You have **5 minutes** to argue with me
@@ -112,7 +112,7 @@ ${data.message}`;
       console.error('Error starting session:', error);
       setIsAiThinking(false);
       setMessages(prev => [...prev, { 
-        text: 'Sorry, I had trouble connecting to my sassy brain. Please try again!', 
+        text: 'Sorry, I had trouble connecting to my interrupting brain. Please try again!',
         sender: 'ai' 
       }]);
     }
@@ -173,7 +173,7 @@ ${data.message}`;
       console.error('Error sending argument:', error);
       setIsAiThinking(false);
       setMessages(prev => [...prev, { 
-        text: 'Oops! My sassy circuits got crossed. Try that again!', 
+        text: 'Oops! My interrupting circuits got crossed. Try that again!',
         sender: 'ai' 
       }]);
       setIsUserTurn(true);

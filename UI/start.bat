@@ -1,5 +1,5 @@
 @echo off
-echo 🔥 Starting S.A.S.S.Y Argument Bot 🔥
+echo 🔥 Starting Sir Interruptsalot Argument Bot 🔥
 echo ==================================
 
 REM Check if Python is installed
