@@ -3,13 +3,38 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { ArrowLeft, Clock, Send } from "lucide-react";
+import { ArrowLeft, Clock, Send, Trophy, ExternalLink, CheckCircle, Lock, ArrowDown, ArrowRight } from "lucide-react";
 import { motion } from "motion/react";
 
 interface ArenaProps {
   roomName: string;
   onBack: () => void;
 }
+
+// Funny/sarcastic AI thinking status messages
+const thinkingStatuses = [
+  "researching how many green bubblers are single",
+  "studying android user poverty levels",
+  "calculating the economic impact of having an opinion",
+  "consulting the ancient scrolls of Wikipedia",
+  "asking my mom for advice",
+  "generating statistics that sound believable",
+  "cross-referencing with my gut feeling",
+  "polling my imaginary focus group",
+  "checking if this violates any terms of service",
+  "wondering why humans argue about everything",
+  "contemplating the meaning of being right on the internet",
+  "analyzing the philosophical implications of your stance"
+];
+
+// Mock research sources
+const mockSources = [
+  { title: "Android Usage Statistics 2025", url: "https://www.demandsage.com/android-statistics/" },
+  { title: "Global Bubble Preferences Study", url: "https://www.bubbleresearch.org/studies/2024" },
+  { title: "Economic Impact of Mobile Platforms", url: "https://www.techeconomics.com/mobile-impact" },
+  { title: "Consumer Behavior Analysis Report", url: "https://www.marketinsights.com/consumer-behavior" },
+  { title: "Digital Lifestyle Demographics", url: "https://www.digitaldemographics.net/lifestyle-study" }
+];
 
 export function Arena({ roomName, onBack }: ArenaProps) {
   const [argument, setArgument] = useState("");
@@ -19,7 +44,17 @@ export function Arena({ roomName, onBack }: ArenaProps) {
   const [isPromptActive, setIsPromptActive] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
   const [isUserTurn, setIsUserTurn] = useState(true); // Track whose turn it is
-  const [messages, setMessages] = useState<Array<{text: string, sender: 'user' | 'ai'}>>([]);
+  const [messages, setMessages] = useState<Array<{text: string, sender: 'user' | 'ai', options?: string[]}>>([]);
+  const [playerScore, setPlayerScore] = useState(0);
+  const [aiScore, setAiScore] = useState(0);
+  const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
+  const [isAiThinking, setIsAiThinking] = useState(false);
+  const [isOptionSelectionPhase, setIsOptionSelectionPhase] = useState(true);
+  const [debateTopic, setDebateTopic] = useState(roomName);
+  const [selectedOption, setSelectedOption] = useState<string | null>(null);
+  const [isTopicLocked, setIsTopicLocked] = useState(false);
+  const [showArrowGuide, setShowArrowGuide] = useState(false);
+  const [arrowStep, setArrowStep] = useState<'options' | 'input'>('options');
 
   // Session timer effect
   useEffect(() => {
@@ -56,10 +91,33 @@ export function Arena({ roomName, onBack }: ArenaProps) {
     };
   }, [isPromptActive, promptTimeLeft]);
 
+  // Cycling status messages effect
+  useEffect(() => {
+    let interval: NodeJS.Timeout | null = null;
+    
+    if (isAiThinking) {
+      interval = setInterval(() => {
+        setCurrentStatusIndex(prev => (prev + 1) % thinkingStatuses.length);
+      }, 2000); // Change status every 2 seconds
+    }
+
+    return () => {
+      if (interval) clearInterval(interval);
+    };
+  }, [isAiThinking, thinkingStatuses.length]);
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = seconds % 60;
     return `${mins}:${secs.toString().padStart(2, '0')}`;
+  };
+
+  const handleOptionSelect = (option: string) => {
+    setSelectedOption(option);
+    setDebateTopic(option);
+    setIsOptionSelectionPhase(false);
+    setArrowStep('input');
+    // Don't start timer here - wait for user to focus on input
   };
 
   const handleSubmitArgument = (autoSubmit = false) => {
@@ -75,24 +133,64 @@ export function Arena({ roomName, onBack }: ArenaProps) {
         setIsSessionActive(true);
       }
       
+      // Lock topic selection immediately when user submits response to selected topic
+      if (selectedOption && !isTopicLocked) {
+        setIsTopicLocked(true);
+        setShowArrowGuide(false); // Hide arrow guide once locked
+      }
+      
       // Stop prompt timer and switch to AI turn
       setIsPromptActive(false);
       setIsUserTurn(false);
       setArgument("");
+      setIsAiThinking(true);
+      setCurrentStatusIndex(0);
       
-      // Simulate AI response after a delay
+      // Simulate AI response after a delay (longer to show the cycling statuses)
       setTimeout(() => {
-        setMessages(prev => [...prev, { 
-          text: `I disagree with "${messageText}". Here's my counterargument...`, 
-          sender: 'ai' 
-        }]);
+        setIsAiThinking(false);
+        
+        if (isOptionSelectionPhase) {
+          // Generate 4 debate options based on the user's argument
+          const debateOptions = [
+            `The economic impact of "${messageText}" on society`,
+            `Why "${messageText}" is fundamentally flawed`,
+            `The cultural implications of "${messageText}"`,
+            `A scientific analysis of "${messageText}"`
+          ];
+          
+          setMessages(prev => [...prev, { 
+            text: `Based on your argument "${messageText}", I've generated four debate topics for us to explore. Please select one:`, 
+            sender: 'ai',
+            options: debateOptions
+          }]);
+          
+          // Show arrow guide after AI presents options
+          setTimeout(() => {
+            setShowArrowGuide(true);
+            setArrowStep('options');
+          }, 1000);
+        } else {
+          // Normal debate response
+          setMessages(prev => [...prev, { 
+            text: `I disagree with "${messageText}". Here's my counterargument based on extensive research from multiple sources...`, 
+            sender: 'ai' 
+          }]);
+          
+          // Simulate random point awarding (for demo purposes) - only during actual debate
+          if (Math.random() > 0.5) {
+            setPlayerScore(prev => prev + 1);
+          } else {
+            setAiScore(prev => prev + 1);
+          }
+        }
         
         // After AI responds, it becomes user's turn again
         setTimeout(() => {
           setIsUserTurn(true);
-          setPromptTimeLeft(60); // Reset timer for new prompt
+          // Don't auto-start timer - wait for user to focus on input
         }, 1000);
-      }, 2000);
+      }, 8000); // Longer delay to show multiple status changes
       
       console.log("Submitting argument:", messageText, autoSubmit ? "(auto-submitted)" : "");
     }
@@ -107,8 +205,9 @@ export function Arena({ roomName, onBack }: ArenaProps) {
 
   // Start prompt timer when user focuses on input during their turn
   const handleInputFocus = () => {
-    if (isUserTurn && !isPromptActive) {
+    if (isUserTurn && !isPromptActive && !isOptionSelectionPhase) {
       setIsPromptActive(true);
+      setPromptTimeLeft(60); // Start the timer when user focuses after topic selection
     }
   };
 
@@ -132,13 +231,13 @@ export function Arena({ roomName, onBack }: ArenaProps) {
           </Button>
 
           <motion.div 
-            className="flex items-center gap-4"
+            className="flex items-center gap-6"
             initial={{ scale: 0.8 }}
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
             <Badge variant="outline" className="px-4 py-2 text-base border-2 border-yellow text-yellow">
-              {roomName}
+              {debateTopic}
             </Badge>
             
             <div className="flex items-center gap-2 text-muted-foreground">
@@ -148,16 +247,62 @@ export function Arena({ roomName, onBack }: ArenaProps) {
               </span>
               <span className="text-sm text-muted-foreground">session</span>
             </div>
+
+            {/* Score Counter - only show after option selection */}
+            {!isOptionSelectionPhase && (
+              <div className="flex items-center gap-4">
+                <div className="flex items-center gap-2">
+                  <Trophy className="w-4 h-4 text-muted-foreground" />
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted-foreground">You:</span>
+                    <span className="text-lg font-mono text-yellow">{playerScore}</span>
+                  </div>
+                  <div className="text-muted-foreground">•</div>
+                  <div className="flex items-center gap-1">
+                    <span className="text-sm text-muted-foreground">Bot:</span>
+                    <span className="text-lg font-mono text-yellow">{aiScore}</span>
+                  </div>
+                </div>
+              </div>
+            )}
           </motion.div>
         </motion.div>
 
         {/* Argument Input Section */}
         <motion.div 
-          className="max-w-4xl mx-auto mb-8"
+          className="max-w-4xl mx-auto mb-8 relative"
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.6, delay: 0.3 }}
         >
+          {/* Arrow Guide for Input */}
+          {showArrowGuide && arrowStep === 'input' && (
+            <motion.div
+              initial={{ opacity: 0, x: -20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: 20 }}
+              transition={{ duration: 0.5 }}
+              className="absolute -left-80 top-1/2 -translate-y-1/2 z-10"
+            >
+              <div className="flex items-center gap-3">
+                <div className="text-right">
+                  <p className="text-sm text-yellow font-medium">
+                    Enter your argument here
+                  </p>
+                  <p className="text-xs text-yellow/80 mt-1">
+                    You won't be able to change topics after submitting
+                  </p>
+                </div>
+                <motion.div
+                  animate={{ x: [0, 10, 0] }}
+                  transition={{ duration: 1.5, repeat: Infinity }}
+                >
+                  <ArrowRight className="w-8 h-8 text-yellow" />
+                </motion.div>
+              </div>
+            </motion.div>
+          )}
+          
           <Card className="p-6 bg-card border-2 border-border">
             <div className="flex flex-col gap-4">
               <div className="flex gap-4">
@@ -220,7 +365,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
 
         {/* Debate Area */}
         <motion.div 
-          className="max-w-4xl mx-auto"
+          className="max-w-4xl mx-auto relative"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
@@ -237,12 +382,103 @@ export function Arena({ roomName, onBack }: ArenaProps) {
               <div className="space-y-4 max-h-[400px] overflow-y-auto">
                 {messages.map((message, index) => (
                   <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl rounded-lg p-4 ${
+                    <div className={`max-w-3xl rounded-lg p-4 relative ${
                       message.sender === 'user' 
                         ? 'bg-yellow/10 border-2 border-yellow/60' 
                         : 'bg-accent border-2 border-border'
                     }`}>
                       <p className="text-foreground">{message.text}</p>
+                      
+                      {/* Show debate options if this is an AI message with options */}
+                      {message.sender === 'ai' && message.options && (
+                        <div className="mt-4 space-y-2 relative">
+                          {/* Arrow Guide for Options */}
+                          {showArrowGuide && arrowStep === 'options' && (
+                            <motion.div
+                              initial={{ opacity: 0, x: -20 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              exit={{ opacity: 0, x: 20 }}
+                              transition={{ duration: 0.5 }}
+                              className="absolute -left-80 top-1/2 -translate-y-1/2 z-10"
+                            >
+                              <div className="flex items-center gap-3">
+                                <div className="text-right">
+                                  <p className="text-sm text-yellow font-medium">
+                                    Pick a debate topic from the options
+                                  </p>
+                                  <p className="text-xs text-yellow/80 mt-1">
+                                    Choose carefully - you'll debate this topic!
+                                  </p>
+                                </div>
+                                <motion.div
+                                  animate={{ x: [0, 10, 0] }}
+                                  transition={{ duration: 1.5, repeat: Infinity }}
+                                >
+                                  <ArrowRight className="w-8 h-8 text-yellow" />
+                                </motion.div>
+                              </div>
+                            </motion.div>
+                          )}
+                          
+                          {message.options.map((option, optIndex) => {
+                            const isSelected = selectedOption === option;
+                            const isLocked = isTopicLocked;
+                            
+                            return (
+                              <motion.button
+                                key={optIndex}
+                                onClick={() => !isLocked && handleOptionSelect(option)}
+                                className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 group ${
+                                  isLocked
+                                    ? isSelected
+                                      ? 'border-yellow bg-yellow/20 cursor-not-allowed'
+                                      : 'border-border bg-muted/30 cursor-not-allowed opacity-50'
+                                    : isSelected
+                                      ? 'border-yellow bg-yellow/10 hover:bg-yellow/15'
+                                      : 'border-yellow/20 bg-yellow/5 hover:bg-yellow/10 hover:border-yellow/40'
+                                }`}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ duration: 0.3, delay: optIndex * 0.1 }}
+                                whileHover={!isLocked ? { scale: 1.02 } : {}}
+                                whileTap={!isLocked ? { scale: 0.98 } : {}}
+                                disabled={isLocked}
+                              >
+                                <div className="flex items-center gap-2">
+                                  {isLocked && isSelected ? (
+                                    <Lock className="w-4 h-4 text-yellow" />
+                                  ) : (
+                                    <CheckCircle className={`w-4 h-4 transition-opacity ${
+                                      isLocked
+                                        ? 'text-muted-foreground opacity-50'
+                                        : isSelected
+                                          ? 'text-yellow opacity-100'
+                                          : 'text-yellow opacity-60 group-hover:opacity-100'
+                                    }`} />
+                                  )}
+                                  <span className={`text-sm transition-colors ${
+                                    isLocked
+                                      ? isSelected
+                                        ? 'text-yellow font-medium'
+                                        : 'text-muted-foreground'
+                                      : isSelected
+                                        ? 'text-yellow font-medium'
+                                        : 'text-foreground group-hover:text-yellow'
+                                  }`}>
+                                    {option}
+                                    {isLocked && isSelected && (
+                                      <span className="ml-2 text-xs text-yellow/80">
+                                        (Locked - Debate Active)
+                                      </span>
+                                    )}
+                                  </span>
+                                </div>
+                              </motion.button>
+                            );
+                          })}
+                        </div>
+                      )}
+                      
                       <span className="text-xs text-muted-foreground mt-2 block">
                         {message.sender === 'user' ? 'You' : 'Arguebot'}
                       </span>
@@ -253,14 +489,49 @@ export function Arena({ roomName, onBack }: ArenaProps) {
                 {/* AI thinking indicator when it's AI's turn */}
                 {!isUserTurn && (
                   <div className="flex justify-start">
-                    <div className="max-w-3xl bg-accent rounded-lg p-4">
+                    <div className="max-w-3xl bg-accent rounded-lg p-4 space-y-3">
                       <div className="flex items-center gap-2">
                         <div className="flex space-x-1">
                           <div className="w-2 h-2 bg-yellow rounded-full animate-bounce"></div>
                           <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
                           <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
                         </div>
-                        <span className="text-muted-foreground">Arguebot is thinking...</span>
+                        <motion.span 
+                          key={currentStatusIndex}
+                          initial={{ opacity: 0, y: 5 }}
+                          animate={{ opacity: 1, y: 0 }}
+                          exit={{ opacity: 0, y: -5 }}
+                          transition={{ duration: 0.3 }}
+                          className="text-muted-foreground italic"
+                        >
+                          {thinkingStatuses[currentStatusIndex]}...
+                        </motion.span>
+                      </div>
+                      
+                      {/* Mock research sources */}
+                      <div className="border-t border-border pt-3">
+                        <p className="text-xs text-muted-foreground mb-2">Consulting sources:</p>
+                        <div className="space-y-1">
+                          {mockSources.slice(0, 3).map((source, index) => (
+                            <motion.div
+                              key={index}
+                              initial={{ opacity: 0, x: -10 }}
+                              animate={{ opacity: 1, x: 0 }}
+                              transition={{ duration: 0.4, delay: index * 0.5 }}
+                              className="flex items-center gap-2"
+                            >
+                              <ExternalLink className="w-3 h-3 text-yellow" />
+                              <a 
+                                href={source.url} 
+                                target="_blank" 
+                                rel="noopener noreferrer"
+                                className="text-xs text-yellow hover:text-yellow/80 underline decoration-dotted transition-colors"
+                              >
+                                {source.title}
+                              </a>
+                            </motion.div>
+                          ))}
+                        </div>
                       </div>
                     </div>
                   </div>
