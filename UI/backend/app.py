@@ -8,7 +8,7 @@ import sys
 import asyncio
 
 # Add the SassyArguBot directory to the path so we can import the bot (now Sir Interruptsalot)
-sys.path.append(os.path.join(os.path.dirname(__file__), "../../../SassyArguBot"))
+# sys.path.append(os.path.join(os.path.dirname(__file__), "../../../SassyArguBot"))
 from argument_bot import SassyArgumentBot
 
 # Load environment variables
