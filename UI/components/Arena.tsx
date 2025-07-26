@@ -5,6 +5,7 @@ import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
 import { ArrowLeft, Clock, Send, Trophy, ExternalLink, CheckCircle, Lock, ArrowDown, ArrowRight } from "lucide-react";
 import { motion } from "framer-motion";
+import { handleDebateRequest, DebateRequest, DebateResponse } from "../api/routes/debate";
 
 interface ArenaProps {
   roomName: string;
@@ -147,7 +148,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
       setCurrentStatusIndex(0);
       
       // Simulate AI response after a delay (longer to show the cycling statuses)
-      setTimeout(() => {
+      setTimeout(async () => {
         setIsAiThinking(false);
         
         if (isOptionSelectionPhase) {
@@ -171,17 +172,41 @@ export function Arena({ roomName, onBack }: ArenaProps) {
             setArrowStep('options');
           }, 1000);
         } else {
-          // Normal debate response
-          setMessages(prev => [...prev, { 
-            text: `I disagree with "${messageText}". Here's my counterargument based on extensive research from multiple sources...`, 
-            sender: 'ai' 
-          }]);
-          
-          // Simulate random point awarding (for demo purposes) - only during actual debate
-          if (Math.random() > 0.5) {
-            setPlayerScore(prev => prev + 1);
-          } else {
-            setAiScore(prev => prev + 1);
+          // Generate intelligent debate response using our API
+          try {
+            const debateRequest: DebateRequest = {
+              userArgument: messageText,
+              topic: debateTopic,
+              conversationHistory: messages,
+              roomType: roomName
+            };
+
+            const response = await handleDebateRequest(debateRequest);
+            
+            setMessages(prev => [...prev, { 
+              text: response.response, 
+              sender: 'ai' 
+            }]);
+            
+            // Award points based on argument strength and AI confidence
+            const userArgumentStrength = response.analysis.strength;
+            const aiConfidence = response.confidence;
+            
+            if (aiConfidence > 0.7 && userArgumentStrength < 6) {
+              setAiScore(prev => prev + 1);
+            } else if (userArgumentStrength > 7 && aiConfidence < 0.6) {
+              setPlayerScore(prev => prev + 1);
+            }
+            
+            console.log(`AI used ${response.strategy} strategy with ${response.confidence} confidence`);
+            
+          } catch (error) {
+            console.error('Error generating AI response:', error);
+            // Fallback to simple response
+            setMessages(prev => [...prev, { 
+              text: `I disagree with "${messageText}". Let me think about this more carefully and get back to you with a proper counterargument.`, 
+              sender: 'ai' 
+            }]);
           }
         }
         

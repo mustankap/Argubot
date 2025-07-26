@@ -33,16 +33,36 @@ npm run deploy:surge        # Deploy to Surge.sh
 
 ### UI Application Structure
 - **App.tsx**: Main component with room selection and arena routing
-- **Arena.tsx**: Core debate interface with turn-based argument system, session/prompt timers
+- **Arena.tsx**: Core debate interface with intelligent AI responses via backend API
 - **RoomCard.tsx**: Room selection cards with custom topic input
 - **components/ui/**: shadcn/ui component library with Tailwind CSS
 - **components/figma/**: Design system components
 
+### Backend API Structure
+- **api/debate.ts**: Main DebateAPI class orchestrating analysis and response generation
+- **api/utils/analysis.ts**: ArgumentAnalysis service for analyzing user arguments
+- **api/utils/strategy.ts**: StrategyService for selecting optimal debate strategies
+- **api/utils/responseGenerator.ts**: ResponseGeneratorService for crafting responses
+- **api/routes/debate.ts**: API route handlers for frontend integration
+
+### Prompts System
+- **prompts/analysis/**: Argument analysis prompts and frameworks
+- **prompts/strategies/**: Strategy-specific prompts for different debate approaches
+  - socratic-questioning.md: Probing questions to expose reasoning flaws
+  - evidence-challenge.md: Questioning data quality and interpretation
+  - logical-deconstruction.md: Breaking down argument structure
+  - reframe-perspective.md: Presenting alternative viewpoints
+  - counter-example.md: Using specific contradictory examples
+
 ### Key Features
+- **Intelligent AI responses**: Multi-strategy analysis and response generation
+- **Argument analysis**: Strength assessment, fallacy detection, weakness identification
+- **Strategic selection**: AI chooses optimal debate strategy based on argument type
 - **Room-based debates**: Law, Politics, Ethics, Cultural, Technology, plus custom topics
 - **Turn-based system**: User and AI alternate with timed responses
 - **Session management**: 5-minute overall sessions with 1-minute per-prompt timers
 - **Real-time UI**: Framer Motion animations, loading states, auto-submission
+- **Smart scoring**: Points awarded based on argument strength and AI confidence
 
 ### Tech Stack
 - React 18 + TypeScript
@@ -50,10 +70,11 @@ npm run deploy:surge        # Deploy to Surge.sh
 - Tailwind CSS + shadcn/ui components
 - Framer Motion for animations
 - Lucide React for icons
+- Node.js/TypeScript backend API
 
 ### State Management
 - Local React state (useState/useEffect)
-- No external state management library
+- Backend API calls for AI response generation
 - Component-level state for room selection, debate flow, timers
 
 ### Styling System
