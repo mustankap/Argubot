@@ -3,12 +3,16 @@ import { Card } from "./ui/card";
 import { Button } from "./ui/button";
 import { Input } from "./ui/input";
 import { Badge } from "./ui/badge";
-import { ArrowLeft, Clock, Send, Trophy, ExternalLink, CheckCircle, Lock, ArrowDown, ArrowRight } from "lucide-react";
-import { motion } from "motion/react";
+import { ArrowLeft, Clock, Send, Trophy, ExternalLink } from "lucide-react";
+import { motion } from "framer-motion";
+
+// API Configuration
+const API_BASE_URL = "http://localhost:8000";
 
 interface ArenaProps {
   roomName: string;
   onBack: () => void;
+  initialUserMessage?: string;
 }
 
 // Funny/sarcastic AI thinking status messages
@@ -36,25 +40,163 @@ const mockSources = [
   { title: "Digital Lifestyle Demographics", url: "https://www.digitaldemographics.net/lifestyle-study" }
 ];
 
-export function Arena({ roomName, onBack }: ArenaProps) {
+export function Arena({ roomName, onBack, initialUserMessage }: ArenaProps) {
   const [argument, setArgument] = useState("");
-  const [sessionTimeLeft, setSessionTimeLeft] = useState(300); // 5 minute session timer
-  const [promptTimeLeft, setPromptTimeLeft] = useState(60); // 1 minute prompt timer
+  const [sessionTimeLeft, setSessionTimeLeft] = useState(300);
   const [isSessionActive, setIsSessionActive] = useState(false);
-  const [isPromptActive, setIsPromptActive] = useState(false);
   const [gameStarted, setGameStarted] = useState(false);
-  const [isUserTurn, setIsUserTurn] = useState(true); // Track whose turn it is
-  const [messages, setMessages] = useState<Array<{text: string, sender: 'user' | 'ai', options?: string[]}>>([]);
+  const [isUserTurn, setIsUserTurn] = useState(true);
+  const [messages, setMessages] = useState<Array<{text: string, sender: 'user' | 'ai'}>>([]);
   const [playerScore, setPlayerScore] = useState(0);
   const [aiScore, setAiScore] = useState(0);
-  const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
   const [isAiThinking, setIsAiThinking] = useState(false);
-  const [isOptionSelectionPhase, setIsOptionSelectionPhase] = useState(true);
   const [debateTopic, setDebateTopic] = useState(roomName);
-  const [selectedOption, setSelectedOption] = useState<string | null>(null);
-  const [isTopicLocked, setIsTopicLocked] = useState(false);
-  const [showArrowGuide, setShowArrowGuide] = useState(false);
-  const [arrowStep, setArrowStep] = useState<'options' | 'input'>('options');
+  const [sessionId, setSessionId] = useState<string | null>(null);
+  const [currentStatusIndex, setCurrentStatusIndex] = useState(0);
+  const [gameEnded, setGameEnded] = useState(false);
+  const [finalReport, setFinalReport] = useState<string | null>(null);
+  const [currentJudgeRuling, setCurrentJudgeRuling] = useState<string | null>(null);
+  const [currentStatus, setCurrentStatus] = useState<string | null>(null);
+
+  // Auto-start with initial message
+  useEffect(() => {
+    if (initialUserMessage && !gameStarted) {
+      startArgumentSession(initialUserMessage);
+    }
+  }, [initialUserMessage, gameStarted]);
+
+  // API Functions
+  const startArgumentSession = async (initialMessage: string) => {
+    try {
+      setIsAiThinking(true);
+      setGameStarted(true);
+      setIsSessionActive(true);
+      setMessages([{ text: initialMessage, sender: 'user' }]);
+      
+      const response = await fetch(`${API_BASE_URL}/api/session/start`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ initial_message: initialMessage })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to start session');
+      }
+      
+      const data = await response.json();
+      setSessionId(data.session_id);
+      setIsAiThinking(false);
+      
+      // Add welcome instructions first
+      const welcomeMessage = `🔥 **WELCOME TO S.A.S.S.Y!** 🔥
+
+**Rules of Engagement:**
+• 🕐 You have **5 minutes** to argue with me
+• 📊 A judge AI will pick the winner of each round (+1 point)
+• 🏆 Most points wins!
+• 📝 After the argument, you'll get a snarky personality report
+
+**How to Play:**
+1. Give me your strongest opinion about ANYTHING
+2. I'll disagree and we'll argue back and forth
+3. Win rounds with logic, wit, and creativity
+4. Have fun and don't take it personally! 😏
+
+---
+
+${data.message}`;
+      
+      setMessages(prev => [...prev, { text: welcomeMessage, sender: 'ai' }]);
+      setIsUserTurn(true);
+    } catch (error) {
+      console.error('Error starting session:', error);
+      setIsAiThinking(false);
+      setMessages(prev => [...prev, { 
+        text: 'Sorry, I had trouble connecting to my sassy brain. Please try again!', 
+        sender: 'ai' 
+      }]);
+    }
+  };
+
+  const sendArgumentToAPI = async (message: string) => {
+    if (!sessionId) return;
+    
+    try {
+      setIsAiThinking(true);
+      setIsUserTurn(false);
+      
+      // Clear previous judge ruling and status for new round
+      setCurrentJudgeRuling(null);
+      setCurrentStatus(null);
+      
+      const response = await fetch(`${API_BASE_URL}/api/argument`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ 
+          session_id: sessionId, 
+          message: message 
+        })
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to send argument');
+      }
+      
+      const data = await response.json();
+      setIsAiThinking(false);
+      
+      // Update scores
+      setPlayerScore(data.user_points);
+      setAiScore(data.bot_points);
+      setSessionTimeLeft(data.time_remaining);
+      
+      // Add ONLY bot response to chat
+      setMessages(prev => [...prev, { text: data.bot_response, sender: 'ai' }]);
+      
+      // Update separate UI boxes for judge and status
+      if (data.judge_explanation && data.judge_explanation !== "Judge had technical difficulties, no points awarded this round.") {
+        setCurrentJudgeRuling(data.judge_explanation);
+      }
+      
+      if (data.status_update) {
+        setCurrentStatus(data.status_update);
+      }
+      
+      // Check if session ended
+      if (!data.session_active) {
+        setIsSessionActive(false);
+        await endSession();
+      } else {
+        setIsUserTurn(true);
+      }
+    } catch (error) {
+      console.error('Error sending argument:', error);
+      setIsAiThinking(false);
+      setMessages(prev => [...prev, { 
+        text: 'Oops! My sassy circuits got crossed. Try that again!', 
+        sender: 'ai' 
+      }]);
+      setIsUserTurn(true);
+    }
+  };
+
+  const endSession = async () => {
+    if (!sessionId) return;
+    
+    try {
+      const response = await fetch(`${API_BASE_URL}/api/session/${sessionId}/end`, {
+        method: 'POST'
+      });
+      
+      if (response.ok) {
+        const data = await response.json();
+        setFinalReport(data.final_report);
+        setGameEnded(true);
+      }
+    } catch (error) {
+      console.error('Error ending session:', error);
+    }
+  };
 
   // Session timer effect
   useEffect(() => {
@@ -62,10 +204,15 @@ export function Arena({ roomName, onBack }: ArenaProps) {
     
     if (isSessionActive && sessionTimeLeft > 0) {
       interval = setInterval(() => {
-        setSessionTimeLeft(timeLeft => timeLeft - 1);
+        setSessionTimeLeft(timeLeft => {
+          if (timeLeft <= 1) {
+            setIsSessionActive(false);
+            endSession();
+            return 0;
+          }
+          return timeLeft - 1;
+        });
       }, 1000);
-    } else if (sessionTimeLeft === 0) {
-      setIsSessionActive(false);
     }
 
     return () => {
@@ -73,23 +220,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
     };
   }, [isSessionActive, sessionTimeLeft]);
 
-  // Prompt timer effect - auto-submits when time runs out
-  useEffect(() => {
-    let interval: NodeJS.Timeout | null = null;
-    
-    if (isPromptActive && promptTimeLeft > 0) {
-      interval = setInterval(() => {
-        setPromptTimeLeft(timeLeft => timeLeft - 1);
-      }, 1000);
-    } else if (promptTimeLeft === 0 && isPromptActive) {
-      // Auto-submit whatever is in the input field
-      handleSubmitArgument(true);
-    }
 
-    return () => {
-      if (interval) clearInterval(interval);
-    };
-  }, [isPromptActive, promptTimeLeft]);
 
   // Cycling status messages effect
   useEffect(() => {
@@ -112,87 +243,18 @@ export function Arena({ roomName, onBack }: ArenaProps) {
     return `${mins}:${secs.toString().padStart(2, '0')}`;
   };
 
-  const handleOptionSelect = (option: string) => {
-    setSelectedOption(option);
-    setDebateTopic(option);
-    setIsOptionSelectionPhase(false);
-    setArrowStep('input');
-    // Don't start timer here - wait for user to focus on input
-  };
 
-  const handleSubmitArgument = (autoSubmit = false) => {
-    // Allow submission even with empty text when auto-submitting
-    if (argument.trim() || autoSubmit) {
-      const messageText = argument.trim() || "(no response)";
+
+  const handleSubmitArgument = () => {
+    if (argument.trim() && isUserTurn && sessionId) {
+      const messageText = argument.trim();
       
       // Add user message to conversation
       setMessages(prev => [...prev, { text: messageText, sender: 'user' }]);
-      
-      if (!gameStarted) {
-        setGameStarted(true);
-        setIsSessionActive(true);
-      }
-      
-      // Lock topic selection immediately when user submits response to selected topic
-      if (selectedOption && !isTopicLocked) {
-        setIsTopicLocked(true);
-        setShowArrowGuide(false); // Hide arrow guide once locked
-      }
-      
-      // Stop prompt timer and switch to AI turn
-      setIsPromptActive(false);
-      setIsUserTurn(false);
       setArgument("");
-      setIsAiThinking(true);
-      setCurrentStatusIndex(0);
       
-      // Simulate AI response after a delay (longer to show the cycling statuses)
-      setTimeout(() => {
-        setIsAiThinking(false);
-        
-        if (isOptionSelectionPhase) {
-          // Generate 4 debate options based on the user's argument
-          const debateOptions = [
-            `The economic impact of "${messageText}" on society`,
-            `Why "${messageText}" is fundamentally flawed`,
-            `The cultural implications of "${messageText}"`,
-            `A scientific analysis of "${messageText}"`
-          ];
-          
-          setMessages(prev => [...prev, { 
-            text: `Based on your argument "${messageText}", I've generated four debate topics for us to explore. Please select one:`, 
-            sender: 'ai',
-            options: debateOptions
-          }]);
-          
-          // Show arrow guide after AI presents options
-          setTimeout(() => {
-            setShowArrowGuide(true);
-            setArrowStep('options');
-          }, 1000);
-        } else {
-          // Normal debate response
-          setMessages(prev => [...prev, { 
-            text: `I disagree with "${messageText}". Here's my counterargument based on extensive research from multiple sources...`, 
-            sender: 'ai' 
-          }]);
-          
-          // Simulate random point awarding (for demo purposes) - only during actual debate
-          if (Math.random() > 0.5) {
-            setPlayerScore(prev => prev + 1);
-          } else {
-            setAiScore(prev => prev + 1);
-          }
-        }
-        
-        // After AI responds, it becomes user's turn again
-        setTimeout(() => {
-          setIsUserTurn(true);
-          // Don't auto-start timer - wait for user to focus on input
-        }, 1000);
-      }, 8000); // Longer delay to show multiple status changes
-      
-      console.log("Submitting argument:", messageText, autoSubmit ? "(auto-submitted)" : "");
+      // Send to API
+      sendArgumentToAPI(messageText);
     }
   };
 
@@ -203,16 +265,60 @@ export function Arena({ roomName, onBack }: ArenaProps) {
     }
   };
 
-  // Start prompt timer when user focuses on input during their turn
-  const handleInputFocus = () => {
-    if (isUserTurn && !isPromptActive && !isOptionSelectionPhase) {
-      setIsPromptActive(true);
-      setPromptTimeLeft(60); // Start the timer when user focuses after topic selection
-    }
-  };
+
+
+  // Show final report if game ended
+  if (gameEnded && finalReport) {
+    return (
+      <div className="min-h-screen bg-black text-white" style={{ backgroundColor: '#000000', color: '#ffffff' }}>
+        <div className="container mx-auto px-4 py-8">
+          <div className="max-w-4xl mx-auto">
+            <Button
+              variant="ghost"
+              onClick={onBack}
+              className="flex items-center gap-2 text-muted-foreground hover:text-foreground mb-8"
+            >
+              <ArrowLeft className="w-4 h-4" />
+              Back to Start
+            </Button>
+            
+            <Card className="p-8 bg-card border-2 border-yellow" style={{ backgroundColor: '#0a0a0a', borderColor: '#ffcd1a' }}>
+              <div className="text-center mb-8">
+                <h1 className="text-3xl font-bold text-yellow mb-4" style={{ color: '#ffcd1a' }}>🎉 Game Over! 🎉</h1>
+                <div className="flex justify-center gap-8 mb-6">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow" style={{ color: '#ffcd1a' }}>{playerScore}</div>
+                    <div className="text-sm text-muted-foreground">Your Points</div>
+                  </div>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-yellow" style={{ color: '#ffcd1a' }}>{aiScore}</div>
+                    <div className="text-sm text-muted-foreground">AI Points</div>
+                  </div>
+                </div>
+              </div>
+              
+              <div className="prose prose-invert max-w-none">
+                <div dangerouslySetInnerHTML={{ __html: finalReport.replace(/\n/g, '<br/>') }} />
+              </div>
+              
+              <div className="text-center mt-8">
+                <Button 
+                  onClick={onBack}
+                  className="bg-yellow hover:bg-yellow-muted text-black font-semibold px-8 py-3"
+                  style={{ backgroundColor: '#ffcd1a', color: '#000000' }}
+                >
+                  Start New Argument
+                </Button>
+              </div>
+            </Card>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
-    <div className="min-h-screen bg-background text-foreground">
+    <div className="min-h-screen bg-black text-white" style={{ backgroundColor: '#000000', color: '#ffffff' }}>
       <div className="container mx-auto px-4 py-8">
         {/* Header */}
         <motion.div 
@@ -227,7 +333,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
             className="flex items-center gap-2 text-muted-foreground hover:text-foreground"
           >
             <ArrowLeft className="w-4 h-4" />
-            Back to Rooms
+            Back to Start
           </Button>
 
           <motion.div 
@@ -236,7 +342,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
             animate={{ scale: 1 }}
             transition={{ duration: 0.5, delay: 0.2 }}
           >
-            <Badge variant="outline" className="px-4 py-2 text-base border-2 border-yellow text-yellow">
+            <Badge variant="outline" className="px-4 py-2 text-base border-2 border-yellow text-yellow bg-yellow/10 shadow-lg shadow-yellow/20">
               {debateTopic}
             </Badge>
             
@@ -248,8 +354,8 @@ export function Arena({ roomName, onBack }: ArenaProps) {
               <span className="text-sm text-muted-foreground">session</span>
             </div>
 
-            {/* Score Counter - only show after option selection */}
-            {!isOptionSelectionPhase && (
+            {/* Score Counter - only show after game starts */}
+            {gameStarted && (
               <div className="flex items-center gap-4">
                 <div className="flex items-center gap-2">
                   <Trophy className="w-4 h-4 text-muted-foreground" />
@@ -268,275 +374,190 @@ export function Arena({ roomName, onBack }: ArenaProps) {
           </motion.div>
         </motion.div>
 
-        {/* Argument Input Section */}
+        {/* Main Content Area - Chat + Judge Sidebar */}
         <motion.div 
-          className="max-w-4xl mx-auto mb-8 relative"
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-        >
-          {/* Arrow Guide for Input */}
-          {showArrowGuide && arrowStep === 'input' && (
-            <motion.div
-              initial={{ opacity: 0, x: -20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: 20 }}
-              transition={{ duration: 0.5 }}
-              className="absolute -left-80 top-1/2 -translate-y-1/2 z-10"
-            >
-              <div className="flex items-center gap-3">
-                <div className="text-right">
-                  <p className="text-sm text-yellow font-medium">
-                    Enter your argument here
-                  </p>
-                  <p className="text-xs text-yellow/80 mt-1">
-                    You won't be able to change topics after submitting
-                  </p>
-                </div>
-                <motion.div
-                  animate={{ x: [0, 10, 0] }}
-                  transition={{ duration: 1.5, repeat: Infinity }}
-                >
-                  <ArrowRight className="w-8 h-8 text-yellow" />
-                </motion.div>
-              </div>
-            </motion.div>
-          )}
-          
-          <Card className="p-6 bg-card border-2 border-border">
-            <div className="flex flex-col gap-4">
-              <div className="flex gap-4">
-                <Input
-                  value={argument}
-                  onChange={(e) => setArgument(e.target.value)}
-                  onKeyPress={handleKeyPress}
-                  onFocus={handleInputFocus}
-                  placeholder={isUserTurn ? "Enter your argument statement" : "Waiting for AI response..."}
-                  className="flex-1 bg-input border-2 border-border text-foreground placeholder:text-muted-foreground focus:border-yellow"
-                  disabled={!isUserTurn}
-                />
-                <Button
-                  onClick={() => handleSubmitArgument()}
-                  disabled={!isUserTurn}
-                  className="bg-yellow text-black hover:opacity-80 transition-opacity"
-                >
-                  <Send className="w-4 h-4" />
-                </Button>
-              </div>
-              
-              {!gameStarted && (
-                <p className="text-sm text-muted-foreground text-center">
-                  Press Enter or click send to start the debate
-                </p>
-              )}
-              
-              {gameStarted && !isUserTurn && (
-                <p className="text-sm text-muted-foreground text-center">
-                  AI is responding...
-                </p>
-              )}
-            </div>
-          </Card>
-        </motion.div>
-
-        {/* Prompt Timer - Only shows during user's turn when active */}
-        {isPromptActive && isUserTurn && (
-          <motion.div 
-            className="max-w-4xl mx-auto mb-8"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            transition={{ duration: 0.3 }}
-          >
-            <div className="text-center">
-              <div className="inline-flex items-center gap-3 px-6 py-3 rounded-lg border-2 border-yellow bg-yellow/10">
-                <Clock className="w-5 h-5 text-yellow" />
-                <span className="text-2xl font-mono text-yellow">
-                  {formatTime(promptTimeLeft)}
-                </span>
-                <span className="text-sm text-muted-foreground">per prompt</span>
-              </div>
-              <p className="text-xs text-muted-foreground mt-2">
-                Timer auto-submits when it reaches 0:00
-              </p>
-            </div>
-          </motion.div>
-        )}
-
-        {/* Debate Area */}
-        <motion.div 
-          className="max-w-4xl mx-auto relative"
+          className="max-w-7xl mx-auto relative flex gap-6"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           transition={{ duration: 0.6, delay: 0.5 }}
         >
-          <Card className="min-h-[500px] p-6 bg-card border-2 border-border">
-            {!gameStarted ? (
-              <div className="flex items-center justify-center h-full text-muted-foreground">
-                <div className="text-center">
-                  <p className="text-lg mb-2">Enter your argument to begin</p>
-                  <p className="text-sm">The Arguebot is waiting for your challenge...</p>
-                </div>
-              </div>
-            ) : (
-              <div className="space-y-4 max-h-[400px] overflow-y-auto">
-                {messages.map((message, index) => (
-                  <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
-                    <div className={`max-w-3xl rounded-lg p-4 relative ${
-                      message.sender === 'user' 
-                        ? 'bg-yellow/10 border-2 border-yellow/60' 
-                        : 'bg-accent border-2 border-border'
-                    }`}>
-                      <p className="text-foreground">{message.text}</p>
-                      
-                      {/* Show debate options if this is an AI message with options */}
-                      {message.sender === 'ai' && message.options && (
-                        <div className="mt-4 space-y-2 relative">
-                          {/* Arrow Guide for Options */}
-                          {showArrowGuide && arrowStep === 'options' && (
-                            <motion.div
-                              initial={{ opacity: 0, x: -20 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              exit={{ opacity: 0, x: 20 }}
-                              transition={{ duration: 0.5 }}
-                              className="absolute -left-80 top-1/2 -translate-y-1/2 z-10"
-                            >
-                              <div className="flex items-center gap-3">
-                                <div className="text-right">
-                                  <p className="text-sm text-yellow font-medium">
-                                    Pick a debate topic from the options
-                                  </p>
-                                  <p className="text-xs text-yellow/80 mt-1">
-                                    Choose carefully - you'll debate this topic!
-                                  </p>
-                                </div>
-                                <motion.div
-                                  animate={{ x: [0, 10, 0] }}
-                                  transition={{ duration: 1.5, repeat: Infinity }}
-                                >
-                                  <ArrowRight className="w-8 h-8 text-yellow" />
-                                </motion.div>
-                              </div>
-                            </motion.div>
-                          )}
-                          
-                          {message.options.map((option, optIndex) => {
-                            const isSelected = selectedOption === option;
-                            const isLocked = isTopicLocked;
-                            
-                            return (
-                              <motion.button
-                                key={optIndex}
-                                onClick={() => !isLocked && handleOptionSelect(option)}
-                                className={`w-full text-left p-3 rounded-lg border-2 transition-all duration-200 group ${
-                                  isLocked
-                                    ? isSelected
-                                      ? 'border-yellow bg-yellow/20 cursor-not-allowed'
-                                      : 'border-border bg-muted/30 cursor-not-allowed opacity-50'
-                                    : isSelected
-                                      ? 'border-yellow bg-yellow/10 hover:bg-yellow/15'
-                                      : 'border-yellow/20 bg-yellow/5 hover:bg-yellow/10 hover:border-yellow/40'
-                                }`}
-                                initial={{ opacity: 0, y: 10 }}
-                                animate={{ opacity: 1, y: 0 }}
-                                transition={{ duration: 0.3, delay: optIndex * 0.1 }}
-                                whileHover={!isLocked ? { scale: 1.02 } : {}}
-                                whileTap={!isLocked ? { scale: 0.98 } : {}}
-                                disabled={isLocked}
-                              >
-                                <div className="flex items-center gap-2">
-                                  {isLocked && isSelected ? (
-                                    <Lock className="w-4 h-4 text-yellow" />
-                                  ) : (
-                                    <CheckCircle className={`w-4 h-4 transition-opacity ${
-                                      isLocked
-                                        ? 'text-muted-foreground opacity-50'
-                                        : isSelected
-                                          ? 'text-yellow opacity-100'
-                                          : 'text-yellow opacity-60 group-hover:opacity-100'
-                                    }`} />
-                                  )}
-                                  <span className={`text-sm transition-colors ${
-                                    isLocked
-                                      ? isSelected
-                                        ? 'text-yellow font-medium'
-                                        : 'text-muted-foreground'
-                                      : isSelected
-                                        ? 'text-yellow font-medium'
-                                        : 'text-foreground group-hover:text-yellow'
-                                  }`}>
-                                    {option}
-                                    {isLocked && isSelected && (
-                                      <span className="ml-2 text-xs text-yellow/80">
-                                        (Locked - Debate Active)
-                                      </span>
-                                    )}
-                                  </span>
-                                </div>
-                              </motion.button>
-                            );
-                          })}
-                        </div>
-                      )}
-                      
-                      <span className="text-xs text-muted-foreground mt-2 block">
-                        {message.sender === 'user' ? 'You' : 'Arguebot'}
-                      </span>
-                    </div>
+          {/* Debate Area - Left Side (Main Chat) */}
+          <div className="flex-1">
+            <Card className="min-h-[500px] p-6 bg-card border-2 border-border">
+              {!gameStarted ? (
+                <div className="flex items-center justify-center h-full text-muted-foreground">
+                  <div className="text-center">
+                    <p className="text-lg mb-2">Enter your argument to begin</p>
+                    <p className="text-sm">The Arguebot is waiting for your challenge...</p>
                   </div>
-                ))}
-                
-                {/* AI thinking indicator when it's AI's turn */}
-                {!isUserTurn && (
-                  <div className="flex justify-start">
-                    <div className="max-w-3xl bg-accent rounded-lg p-4 space-y-3">
-                      <div className="flex items-center gap-2">
-                        <div className="flex space-x-1">
-                          <div className="w-2 h-2 bg-yellow rounded-full animate-bounce"></div>
-                          <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
-                          <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
-                        </div>
-                        <motion.span 
-                          key={currentStatusIndex}
-                          initial={{ opacity: 0, y: 5 }}
-                          animate={{ opacity: 1, y: 0 }}
-                          exit={{ opacity: 0, y: -5 }}
-                          transition={{ duration: 0.3 }}
-                          className="text-muted-foreground italic"
-                        >
-                          {thinkingStatuses[currentStatusIndex]}...
-                        </motion.span>
-                      </div>
-                      
-                      {/* Mock research sources */}
-                      <div className="border-t border-border pt-3">
-                        <p className="text-xs text-muted-foreground mb-2">Consulting sources:</p>
-                        <div className="space-y-1">
-                          {mockSources.slice(0, 3).map((source, index) => (
-                            <motion.div
-                              key={index}
-                              initial={{ opacity: 0, x: -10 }}
-                              animate={{ opacity: 1, x: 0 }}
-                              transition={{ duration: 0.4, delay: index * 0.5 }}
-                              className="flex items-center gap-2"
-                            >
-                              <ExternalLink className="w-3 h-3 text-yellow" />
-                              <a 
-                                href={source.url} 
-                                target="_blank" 
-                                rel="noopener noreferrer"
-                                className="text-xs text-yellow hover:text-yellow/80 underline decoration-dotted transition-colors"
-                              >
-                                {source.title}
-                              </a>
-                            </motion.div>
+                </div>
+              ) : (
+                <div className="space-y-4 max-h-[400px] overflow-y-auto">
+                  {messages.map((message, index) => (
+                    <div key={index} className={`flex ${message.sender === 'user' ? 'justify-end' : 'justify-start'}`}>
+                      <div className={`max-w-3xl rounded-lg p-4 relative ${
+                        message.sender === 'user' 
+                          ? 'bg-yellow/10 border-2 border-yellow/60' 
+                          : 'bg-accent border-2 border-border'
+                      }`} style={{ 
+                        backgroundColor: message.sender === 'user' 
+                          ? 'rgba(255, 205, 26, 0.1)' 
+                          : '#1a1a1a' 
+                      }}>
+                        <div className="text-foreground whitespace-pre-wrap">
+                          {message.text.split('\n').map((line, lineIndex) => (
+                            <p key={lineIndex} className={lineIndex > 0 ? 'mt-3' : ''}>
+                              {line}
+                            </p>
                           ))}
                         </div>
+                        
+
+                        
+                        <span className="text-xs text-muted-foreground mt-2 block">
+                          {message.sender === 'user' ? 'You' : 'Arguebot'}
+                        </span>
                       </div>
                     </div>
+                  ))}
+                  
+                  {/* AI thinking indicator when it's AI's turn */}
+                  {!isUserTurn && (
+                    <div className="flex justify-start">
+                      <div className="max-w-3xl bg-accent rounded-lg p-4 space-y-3">
+                        <div className="flex items-center gap-2">
+                          <div className="flex space-x-1">
+                            <div className="w-2 h-2 bg-yellow rounded-full animate-bounce"></div>
+                            <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.1s' }}></div>
+                            <div className="w-2 h-2 bg-yellow rounded-full animate-bounce" style={{ animationDelay: '0.2s' }}></div>
+                          </div>
+                          <motion.span 
+                            key={currentStatusIndex}
+                            initial={{ opacity: 0, y: 5 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -5 }}
+                            transition={{ duration: 0.3 }}
+                            className="text-muted-foreground italic"
+                          >
+                            {thinkingStatuses[currentStatusIndex]}...
+                          </motion.span>
+                        </div>
+                        
+                        {/* Mock research sources */}
+                        <div className="border-t border-border pt-3">
+                          <p className="text-xs text-muted-foreground mb-2">Consulting sources:</p>
+                          <div className="space-y-1">
+                            {mockSources.slice(0, 3).map((source, index) => (
+                              <motion.div
+                                key={index}
+                                initial={{ opacity: 0, x: -10 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                transition={{ duration: 0.4, delay: index * 0.5 }}
+                                className="flex items-center gap-2"
+                              >
+                                <ExternalLink className="w-3 h-3 text-yellow" />
+                                <a 
+                                  href={source.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="text-xs text-yellow hover:text-yellow/80 underline decoration-dotted transition-colors"
+                                >
+                                  {source.title}
+                                </a>
+                              </motion.div>
+                            ))}
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </Card>
+          </div>
+
+          {/* Judge Insight Box - Right Sidebar */}
+          {currentJudgeRuling && (
+            <motion.div 
+              className="w-80 sticky top-8 h-fit"
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              transition={{ duration: 0.5 }}
+            >
+              <Card className="p-4 bg-gradient-to-br from-purple-900/20 to-blue-900/20 border-2 border-purple-500/50" 
+                    style={{ backgroundColor: 'rgba(75, 0, 130, 0.1)', borderColor: 'rgba(147, 51, 234, 0.5)' }}>
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <div className="text-xl">🧑‍⚖️</div>
+                    <h3 className="text-purple-300 font-semibold text-sm">JUDGE'S INSIGHT</h3>
                   </div>
-                )}
+                  <div className="h-px bg-purple-500/30"></div>
+                  <p className="text-white text-sm leading-relaxed">{currentJudgeRuling}</p>
+                </div>
+              </Card>
+            </motion.div>
+          )}
+        </motion.div>
+
+        {/* Status Update Box - Hidden (scores shown in header) */}
+        {/* {currentStatus && (
+          <motion.div 
+            className="max-w-4xl mx-auto mt-4"
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.5, delay: 0.2 }}
+          >
+            <Card className="p-4 bg-gradient-to-r from-green-900/20 to-teal-900/20 border-2 border-green-500/50"
+                  style={{ backgroundColor: 'rgba(0, 100, 0, 0.1)', borderColor: 'rgba(34, 197, 94, 0.5)' }}>
+              <div className="flex items-start gap-3">
+                <div className="text-2xl">📊</div>
+                <div className="flex-1">
+                  <h3 className="text-green-300 font-semibold text-sm mb-2">ARGUMENT STATUS</h3>
+                  <div className="text-white text-sm leading-relaxed whitespace-pre-wrap">{currentStatus}</div>
+                </div>
               </div>
+            </Card>
+          </motion.div>
+        )} */}
+
+        {/* Chat Input Section - Moved to Bottom */}
+        <motion.div 
+          className="max-w-7xl mx-auto mt-6"
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.6, delay: 0.3 }}
+        >
+          <Card className="p-4 bg-card border-2 border-border" style={{ backgroundColor: '#0a0a0a', borderColor: '#262626' }}>
+            <div className="flex gap-4 items-center">
+              <Input
+                value={argument}
+                onChange={(e) => setArgument(e.target.value)}
+                onKeyPress={handleKeyPress}
+                placeholder={isUserTurn ? "Type your argument here..." : "Waiting for AI response..."}
+                className="flex-1 bg-input border-2 border-border text-foreground placeholder:text-muted-foreground focus:border-yellow"
+                style={{ backgroundColor: '#1a1a1a', borderColor: '#262626', color: '#ffffff' }}
+                disabled={!isUserTurn}
+              />
+              <Button
+                onClick={() => handleSubmitArgument()}
+                disabled={!isUserTurn}
+                className="bg-yellow text-black hover:opacity-80 transition-opacity px-6"
+                style={{ backgroundColor: '#ffcd1a', color: '#000000' }}
+              >
+                <Send className="w-4 h-4" />
+              </Button>
+            </div>
+            
+            {!gameStarted && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                Press Enter or click send to start debating
+              </p>
+            )}
+            
+            {gameStarted && !isUserTurn && (
+              <p className="text-xs text-muted-foreground text-center mt-2">
+                AI is thinking... Please wait
+              </p>
             )}
           </Card>
         </motion.div>
@@ -544,7 +565,7 @@ export function Arena({ roomName, onBack }: ArenaProps) {
         {/* Game Status */}
         {gameStarted && (
           <motion.div 
-            className="text-center mt-6"
+            className="text-center mt-4"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             transition={{ duration: 0.6, delay: 0.8 }}

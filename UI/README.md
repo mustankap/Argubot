@@ -1,92 +1,188 @@
-# Argubot UI - Deployment Guide
+# 🔥 S.A.S.S.Y - Smart AI System with Sassy Yields
 
-A React/TypeScript application for the Argubot interface.
+A beautiful React frontend integrated with a powerful FastAPI backend for real-time AI arguments with Claude!
 
-## Quick Start
+## ✨ Features
 
-### Development
+- **🎨 Sleek Black Theme** with bright yellow highlights
+- **⚡ Real-time AI Arguments** powered by Claude API
+- **📊 Live Scoring System** with AI judge
+- **⏱️ 5-minute timed sessions**
+- **📝 Personality Reports** after each game
+- **🚀 Modern Tech Stack** - React + FastAPI + Claude
+
+## 🛠️ Tech Stack
+
+### Frontend
+- **React 18** with TypeScript
+- **Vite** for fast development
+- **Tailwind CSS** for styling
+- **Framer Motion** for animations
+- **Radix UI** components
+
+### Backend
+- **FastAPI** for REST API
+- **Claude AI** (Anthropic) for arguments
+- **Pydantic** for data validation
+- **Uvicorn** ASGI server
+
+## 📋 Prerequisites
+
+- **Python 3.8+**
+- **Node.js 16+**
+- **Anthropic API Key** ([Get one here](https://console.anthropic.com/))
+
+## 🚀 Quick Start
+
+### Option 1: Automatic Setup (Recommended)
+
+**Windows:**
 ```bash
-npm install
+# Double-click start.bat or run:
+start.bat
+```
+
+**Linux/Mac:**
+```bash
+chmod +x start.sh
+./start.sh
+```
+
+### Option 2: Manual Setup
+
+1. **Clone and navigate:**
+   ```bash
+   cd Argubot/UI
+   ```
+
+2. **Set up backend:**
+   ```bash
+   cd backend
+   pip install -r requirements.txt
+   
+   # Create .env file and add your API key:
+   echo "ANTHROPIC_API_KEY=your_key_here" > .env
+   ```
+
+3. **Set up frontend:**
+   ```bash
+   cd ..
+   npm install
+   ```
+
+4. **Start both servers:**
+   ```bash
+   npm run start
+   ```
+
+## 🔑 Environment Setup
+
+Create `backend/.env` file:
+```env
+ANTHROPIC_API_KEY=your_anthropic_api_key_here
+```
+
+Get your API key from [Anthropic Console](https://console.anthropic.com/).
+
+## 📡 API Endpoints
+
+The backend exposes these endpoints:
+
+- `POST /api/session/start` - Start new argument session
+- `POST /api/argument` - Send argument and get response
+- `GET /api/session/{id}/status` - Get session status
+- `POST /api/session/{id}/end` - End session and get report
+
+## 🎮 How to Play
+
+1. **Enter Your Argument** - Type your strongest opinion
+2. **Start the Battle** - Click "Start the Argument!"
+3. **Argue Back & Forth** - AI will disagree with everything
+4. **Get Scored** - AI judge awards points each round
+5. **Win or Lose** - See your final score and personality report!
+
+## 🔧 Development
+
+### Run Frontend Only
+```bash
 npm run dev
 ```
 
-### Build for Production
+### Run Backend Only
+```bash
+npm run backend
+```
+
+### Run Both Together
+```bash
+npm run start
+```
+
+## 📦 Build for Production
+
 ```bash
 npm run build
 ```
 
-### Deploy
+## 🚢 Deployment Options
+
 ```bash
-./deploy.sh
+# Netlify
+npm run deploy:netlify
+
+# Vercel
+npm run deploy:vercel
+
+# Surge
+npm run deploy:surge
 ```
 
-## Deployment Options
-
-### 1. Netlify (Recommended - Easiest)
-1. Run `npm run build`
-2. Go to [netlify.com/drop](https://app.netlify.com/drop)
-3. Drag the `dist` folder to the page
-4. Your app goes live instantly!
-
-### 2. Vercel (Great for React)
-```bash
-npm i -g vercel
-npm run build
-npx vercel --prod
-```
-
-### 3. Surge.sh (Simple)
-```bash
-npm i -g surge
-npm run build
-npx surge dist/
-```
-
-### 4. GitHub Pages
-1. Push your code to GitHub
-2. Go to repository Settings > Pages
-3. Select "Deploy from a branch"
-4. Choose your branch and `/dist` folder
-
-### 5. Manual Hosting
-1. Run `npm run build`
-2. Upload contents of `dist/` folder to any web hosting service
-
-## Scripts
-
-- `npm run dev` - Start development server
-- `npm run build` - Build for production
-- `npm run preview` - Preview production build
-- `npm run lint` - Run ESLint
-
-## Tech Stack
-
-- **React 18** - UI framework
-- **TypeScript** - Type safety
-- **Vite** - Build tool
-- **Tailwind CSS** - Styling
-- **Framer Motion** - Animations
-- **Lucide React** - Icons
-
-## Project Structure
+## 🎯 Project Structure
 
 ```
-UI/
-├── components/          # React components
-│   ├── ui/             # Reusable UI components
-│   ├── Arena.tsx       # Game arena component
-│   └── RoomCard.tsx    # Room selection component
-├── styles/             # Global styles
-├── App.tsx             # Main app component
-└── main.tsx           # Entry point
+Argubot/UI/
+├── src/
+│   ├── App.tsx              # Main React app
+│   ├── components/
+│   │   ├── Arena.tsx        # Argument interface
+│   │   └── ui/              # Reusable components
+│   └── styles/
+│       └── globals.css      # Global styles
+├── backend/
+│   ├── app.py              # FastAPI server
+│   ├── requirements.txt    # Python dependencies
+│   └── .env               # API keys (create this)
+├── package.json           # Node.js dependencies
+├── start.sh              # Linux/Mac startup
+├── start.bat            # Windows startup
+└── README.md           # This file
 ```
 
-## Build Output
+## 🐛 Troubleshooting
 
-The build creates a `dist/` folder with:
-- Optimized JavaScript bundles
-- CSS files
-- Static assets
-- `index.html` entry point
+**Backend not starting?**
+- Check Python version: `python --version`
+- Install requirements: `pip install -r backend/requirements.txt`
+- Verify API key in `backend/.env`
 
-These files can be deployed to any static hosting service.
+**Frontend not loading?**
+- Check Node version: `node --version`
+- Clear cache: `npm cache clean --force`
+- Reinstall: `rm -rf node_modules && npm install`
+
+**API errors?**
+- Verify your Anthropic API key is valid
+- Check backend is running on port 8000
+- Look for CORS errors in browser console
+
+## 📄 License
+
+MIT License - feel free to use this for your own sassy AI projects!
+
+## 🎉 Credits
+
+Built with ❤️ for maximum sass and AI-powered arguments!
+
+---
+
+**Ready to argue?** Start the app and let S.A.S.S.Y tear apart your opinions! 🔥
